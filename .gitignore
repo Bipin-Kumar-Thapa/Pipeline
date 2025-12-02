@@ -1,0 +1,6 @@
+# Ignore the entire logs directory
+logs/
+gdrive_credentials/
+
+# Optionally, you can ignore specific log files too if you want more control
+# logs/*.log
