@@ -32,8 +32,17 @@ def run_etl(input_path, table_name="loan_data_cleaned"):
 
     df = _read_csv_robust(input_path)
 
-    # Clean empty spaces, unicode spaces etc.
+    # -------------------------------------------------------
+    # Clean empty spaces, unicode spaces, and text null values
+    # -------------------------------------------------------
     df.replace([r'^\s*$', r'\s+', ' ', r'\u200b', r'\u00a0'], pd.NA, regex=True, inplace=True)
+
+    # NEW LOGIC: convert text 'null'/'NaN' to missing
+    df.replace(
+        ["null", "NULL", "Null", "nan", "NaN", "NAN"],
+        pd.NA,
+        inplace=True
+    )
 
     # ---------------------------
     # Corrected Fill-Nulls Logic

@@ -67,6 +67,11 @@ def run_etl_task(**kwargs):
 
     insights, df = run_etl(file_path)
 
+    # *********** ONLY CHANGE ADDED ***********
+    # Overwrite the file with the cleaned transformed CSV
+    df.to_csv(file_path, index=False)
+    # *****************************************
+
     df_html = df.to_html(index=False, border=1)
     ti.xcom_push(key="etl_insights", value=insights)
     ti.xcom_push(key="etl_table_html", value=df_html)
@@ -108,12 +113,11 @@ def upload_compressed_file(**kwargs):
 
 
 # ----------------------------------------------------
-# SEND EMAIL SUMMARY (Updated Design Only)
+# SEND EMAIL SUMMARY
 # ----------------------------------------------------
 def send_email(**kwargs):
     ti = kwargs["ti"]
 
-    # Timestamp (Nepal)
     nepal = pytz.timezone("Asia/Kathmandu")
     run_time = datetime.now(nepal).strftime("%Y-%m-%d %H:%M:%S (%Z)")
 
@@ -131,9 +135,6 @@ def send_email(**kwargs):
     raw_file_url = f"https://drive.google.com/file/d/{file_info['id']}/view?usp=drivesdk"
     compressed_file_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=drivesdk"
 
-    # ----------------------------------------------------
-    # CLEAN MODERN GREEN THEME EMAIL DESIGN
-    # ----------------------------------------------------
     html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; background:#eef2f3; padding:20px;">
