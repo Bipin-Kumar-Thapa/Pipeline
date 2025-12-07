@@ -67,10 +67,7 @@ def run_etl_task(**kwargs):
 
     insights, df = run_etl(file_path)
 
-    # *********** ONLY CHANGE ADDED ***********
-    # Overwrite the file with the cleaned transformed CSV
     df.to_csv(file_path, index=False)
-    # *****************************************
 
     df_html = df.to_html(index=False, border=1)
     ti.xcom_push(key="etl_insights", value=insights)
@@ -130,7 +127,11 @@ def send_email(**kwargs):
 
     original_size = int(file_info.get("size", 0))
     compressed_size = os.path.getsize(zip_path)
-    ratio = round(compressed_size / float(original_size), 3)
+
+    size_decrease = original_size - compressed_size
+
+    ratio = compressed_size / float(original_size)
+    percent_decrease = round((1 - ratio) * 100, 1)   # <--- ADDED
 
     raw_file_url = f"https://drive.google.com/file/d/{file_info['id']}/view?usp=drivesdk"
     compressed_file_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=drivesdk"
@@ -146,47 +147,31 @@ def send_email(**kwargs):
             <h2 style="margin:0; font-size:22px;">Google Drive ETL – Processing Summary</h2>
         </div>
 
-        <p style="font-size:15px; margin-top:20px; line-height:1.6;">
-            The ETL pipeline has successfully processed 
-            <b>1 file(s)</b> from Google Drive and stored the results.
-        </p>
-
-        <div style="background:#f6f6f6; padding:12px 15px; border-left:4px solid #0c6b2f;
-                    margin-top:10px; border-radius:6px;">
-            <b>Run time:</b> {run_time}<br>
-            <b>Drive folder ID:</b> {FOLDER_ID}
-        </div>
-
-        <h3 style="margin-top:30px; color:#0c6b2f;">Cleaned Table (Before Compression)</h3>
-
-        <div style="border:1px solid #ccc; border-radius:6px; padding:10px; overflow-x:auto;">
-            {df_html}
-        </div>
-
         <h3 style="margin-top:30px; color:#0c6b2f;">File Compression Summary</h3>
 
-        <table style="border-collapse: collapse; width: 100%; margin-top: 10px;">
-            <tr style="background:#0c6b2f; color:white;">
-                <th style="padding:10px; border:1px solid #ccc;">Filename</th>
-                <th style="padding:10px; border:1px solid #ccc;">Original Size</th>
-                <th style="padding:10px; border:1px solid #ccc;">Compressed Size</th>
-                <th style="padding:10px; border:1px solid #ccc;">Compression Ratio</th>
-                <th style="padding:10px; border:1px solid #ccc;">Raw File</th>
-                <th style="padding:10px; border:1px solid #ccc;">Compressed File</th>
-            </tr>
-            <tr>
-                <td style="padding:10px; border:1px solid #ccc;">{file_info['name']}.zip</td>
-                <td style="padding:10px; border:1px solid #ccc;">{original_size} bytes</td>
-                <td style="padding:10px; border:1px solid #ccc;">{compressed_size} bytes</td>
-                <td style="padding:10px; border:1px solid #ccc;">{ratio}</td>
-                <td style="padding:10px; border:1px solid #ccc;">
-                    <a href="{raw_file_url}">View Raw File</a>
-                </td>
-                <td style="padding:10px; border:1px solid #ccc;">
-                    <a href="{compressed_file_url}">View Compressed</a>
-                </td>
-            </tr>
-        </table>
+        <div style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:15px;">
+
+            <div style="font-weight:bold; color:#0c6b2f; font-size:16px; margin-bottom:8px;">
+                {file_info['name']}.zip
+            </div>
+            <br>
+            <div><strong>Original Size:</strong> {original_size} bytes</div>
+            <div><strong>Compressed Size:</strong> {compressed_size} bytes</div>
+            <div><strong>Compression Ratio:</strong> {round(ratio,3)}</div>
+            <div><strong>File Size Decreased By:</strong> {size_decrease} bytes</div>
+
+            <!-- NEW LINE HERE -->
+            <div><strong>Size Decreased By:</strong> {percent_decrease}%</div>
+
+            <div style="margin-top:8px;">
+                <strong>Raw File:</strong> <a href="{raw_file_url}">View Raw File</a>
+            </div>
+
+            <div>
+                <strong>Compressed File:</strong> <a href="{compressed_file_url}">View Compressed</a>
+            </div>
+
+        </div>
 
         <p style="margin-top:40px; font-size:13px; color:#555;">
             Regards,<br>
@@ -201,7 +186,7 @@ def send_email(**kwargs):
 
     msg = MIMEMultipart()
     msg["From"] = "bipinkumarthapa736@gmail.com"
-    msg["To"] = "bipinkumarthapa736@gmail.com"
+    msg["To"] = "bipinbikramthapa@gmail.com"
     msg["Subject"] = "Google Drive File Processed"
     msg.attach(MIMEText(html, "html"))
 
