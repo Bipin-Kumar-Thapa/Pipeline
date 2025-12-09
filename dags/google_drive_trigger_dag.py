@@ -35,12 +35,15 @@ def download_file(**kwargs):
     creds = authenticate_google_account()
     service = build("drive", "v3", credentials=creds)
 
-    meta = service.files().get(fileId=file_info["id"], fields="mimeType").execute()
+    meta = service.files().get(
+        fileId=file_info["id"],
+        fields="mimeType"
+    ).execute()
     mime = meta["mimeType"]
 
     os.makedirs(LOCAL_DOWNLOAD, exist_ok=True)
     file_path = f"{LOCAL_DOWNLOAD}/{file_info['name']}"
-    fh = io.FileIO(file_path, 'wb')
+    fh = io.FileIO(file_path, "wb")
 
     if mime == "application/vnd.google-apps.spreadsheet":
         request = service.files().export_media(
@@ -48,7 +51,9 @@ def download_file(**kwargs):
             mimeType="text/csv"
         )
     else:
-        request = service.files().get_media(fileId=file_info["id"])
+        request = service.files().get_media(
+            fileId=file_info["id"]
+        )
 
     downloader = MediaIoBaseDownload(fh, request)
     done = False
@@ -82,7 +87,7 @@ def compress_file(**kwargs):
     file_path = ti.xcom_pull(task_ids="download_file")
     zip_path = file_path + ".zip"
 
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         zipf.write(file_path, arcname=os.path.basename(file_path))
 
     return zip_path
@@ -98,10 +103,16 @@ def upload_compressed_file(**kwargs):
     creds = authenticate_google_account()
     service = build("drive", "v3", credentials=creds)
 
-    media = MediaIoBaseUpload(io.FileIO(zip_path, "rb"), mimetype="application/zip")
+    media = MediaIoBaseUpload(
+        io.FileIO(zip_path, "rb"),
+        mimetype="application/zip"
+    )
 
     uploaded = service.files().create(
-        body={"name": os.path.basename(zip_path), "parents": [FOLDER_ID]},
+        body={
+            "name": os.path.basename(zip_path),
+            "parents": [FOLDER_ID]
+        },
         media_body=media,
         fields="id"
     ).execute()
@@ -129,12 +140,15 @@ def send_email(**kwargs):
     compressed_size = os.path.getsize(zip_path)
 
     size_decrease = original_size - compressed_size
-
     ratio = compressed_size / float(original_size)
-    percent_decrease = round((1 - ratio) * 100, 1)   # <--- ADDED
+    percent_decrease = round((1 - ratio) * 100, 1)
 
-    raw_file_url = f"https://drive.google.com/file/d/{file_info['id']}/view?usp=drivesdk"
-    compressed_file_url = f"https://drive.google.com/file/d/{uploaded_id}/view?usp=drivesdk"
+    raw_file_url = (
+        f"https://drive.google.com/file/d/{file_info['id']}/view?usp=drivesdk"
+    )
+    compressed_file_url = (
+        f"https://drive.google.com/file/d/{uploaded_id}/view?usp=drivesdk"
+    )
 
     html = f"""
     <html>
@@ -144,31 +158,37 @@ def send_email(**kwargs):
                 border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,0.08);">
 
         <div style="background:#0c6b2f; padding:18px; border-radius:8px; color:white;">
-            <h2 style="margin:0; font-size:22px;">Google Drive ETL – Processing Summary</h2>
+            <h2 style="margin:0; font-size:22px;">
+                Google Drive ETL – Processing Summary
+            </h2>
         </div>
 
-        <h3 style="margin-top:30px; color:#0c6b2f;">File Compression Summary</h3>
+        <h3 style="margin-top:30px; color:#0c6b2f;">
+            File Compression Summary
+        </h3>
 
-        <div style="border:1px solid #ccc; border-radius:6px; padding:12px; margin-bottom:15px;">
+        <div style="border:1px solid #ccc; border-radius:6px;
+                    padding:12px; margin-bottom:15px;">
 
-            <div style="font-weight:bold; color:#0c6b2f; font-size:16px; margin-bottom:8px;">
+            <div style="font-weight:bold; color:#0c6b2f;
+                        font-size:16px; margin-bottom:8px;">
                 {file_info['name']}.zip
             </div>
-            <br>
+
             <div><strong>Original Size:</strong> {original_size} bytes</div>
             <div><strong>Compressed Size:</strong> {compressed_size} bytes</div>
-            <div><strong>Compression Ratio:</strong> {round(ratio,3)}</div>
+            <div><strong>Compression Ratio:</strong> {round(ratio, 3)}</div>
             <div><strong>File Size Decreased By:</strong> {size_decrease} bytes</div>
-
-            <!-- NEW LINE HERE -->
             <div><strong>Size Decreased By:</strong> {percent_decrease}%</div>
 
             <div style="margin-top:8px;">
-                <strong>Raw File:</strong> <a href="{raw_file_url}">View Raw File</a>
+                <strong>Raw File:</strong>
+                <a href="{raw_file_url}">View Raw File</a>
             </div>
 
             <div>
-                <strong>Compressed File:</strong> <a href="{compressed_file_url}">View Compressed</a>
+                <strong>Compressed File:</strong>
+                <a href="{compressed_file_url}">View Compressed</a>
             </div>
 
         </div>
@@ -179,7 +199,6 @@ def send_email(**kwargs):
         </p>
 
     </div>
-
     </body>
     </html>
     """
@@ -210,32 +229,32 @@ with DAG(
         task_id="wait_for_file",
         folder_id=FOLDER_ID,
         mode="reschedule",
-        poke_interval=60
+        poke_interval=60,
     )
 
     download = PythonOperator(
         task_id="download_file",
-        python_callable=download_file
+        python_callable=download_file,
     )
 
     etl = PythonOperator(
         task_id="run_etl",
-        python_callable=run_etl_task
+        python_callable=run_etl_task,
     )
 
     compress = PythonOperator(
         task_id="compress_file",
-        python_callable=compress_file
+        python_callable=compress_file,
     )
 
     upload = PythonOperator(
         task_id="upload_compressed_file",
-        python_callable=upload_compressed_file
+        python_callable=upload_compressed_file,
     )
 
     notify = PythonOperator(
         task_id="send_email",
-        python_callable=send_email
+        python_callable=send_email,
     )
 
     wait >> download >> etl >> compress >> upload >> notify

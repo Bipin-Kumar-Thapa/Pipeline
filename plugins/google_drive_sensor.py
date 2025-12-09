@@ -31,7 +31,6 @@ def authenticate_google_account():
     return creds
 
 
-
 class GoogleDriveFileSensor(BaseSensorOperator):
 
     def __init__(self, folder_id, *args, **kwargs):
@@ -42,20 +41,19 @@ class GoogleDriveFileSensor(BaseSensorOperator):
         creds = authenticate_google_account()
         service = build('drive', 'v3', credentials=creds)
 
-        # Query to get only real files in folder
         query = (
             f"'{self.folder_id}' in parents "
-            f" and mimeType != 'application/vnd.google-apps.folder'"
+            f"and mimeType != 'application/vnd.google-apps.folder'"
         )
 
         results = service.files().list(
             q=query,
-            fields="files(id, name, size, mimeType, createdTime, trashed)"
+            fields="files(id, name, size, mimeType, trashed)"
         ).execute()
 
         files = results.get("files", [])
 
-        # Filter: only real CSV files, not trashed
+        # All CSV files
         csv_files = [
             f for f in files
             if f.get("mimeType") == "text/csv"
@@ -64,15 +62,27 @@ class GoogleDriveFileSensor(BaseSensorOperator):
         ]
 
         if not csv_files:
+            self.log.info("No CSV files found. Waiting.")
             return False
 
-        # Pick newest CREATED file (correct for new uploads)
-        newest_file = sorted(
-            csv_files,
-            key=lambda x: x["createdTime"],
-            reverse=True
-        )[0]
+        # All ZIP names in folder
+        zip_names = {
+            f["name"] for f in files
+            if f["name"].lower().endswith(".zip")
+            and not f.get("trashed", False)
+        }
 
-        # Push to XCom
-        context["task_instance"].xcom_push(key="file_info", value=newest_file)
-        return True
+        # ✅ Find FIRST CSV that has NO zip
+        for csv in csv_files:
+            expected_zip = csv["name"] + ".zip"
+            if expected_zip not in zip_names:
+                self.log.info(f"Found unprocessed CSV: {csv['name']}")
+                context["task_instance"].xcom_push(
+                    key="file_info",
+                    value=csv
+                )
+                return True
+
+        # ❌ All CSVs already zipped
+        self.log.info("All CSV files already have ZIPs. Waiting.")
+        return False
