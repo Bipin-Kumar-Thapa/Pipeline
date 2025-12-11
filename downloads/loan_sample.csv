@@ -1,0 +1,11 @@
+loan_id,user_id,amount,status,remarks
+1,101,5000.0,approved,Customer requested fast approval
+2,102,4300.0,rejected,Customer requested fast approval
+3,103,7500.0,approved,Customer requested fast approval
+4,104,6200.0,approved,Customer requested fast approval
+5,105,4300.0,approved,Customer requested fast approval
+6,106,4300.0,rejected,Customer requested fast approval
+7,107,8100.0,approved,good customer
+8,108,4300.0,pending,Customer requested fast approval
+9,109,9000.0,approved,Customer requested fast approval
+10,110,4300.0,rejected,Customer requested fast approval

@@ -74,15 +74,21 @@ class GoogleDriveFileSensor(BaseSensorOperator):
 
         # ✅ Find FIRST CSV that has NO zip
         for csv in csv_files:
-            expected_zip = csv["name"] + ".zip"
-            if expected_zip not in zip_names:
-                self.log.info(f"Found unprocessed CSV: {csv['name']}")
-                context["task_instance"].xcom_push(
-                    key="file_info",
-                    value=csv
-                )
-                return True
+            # Check if the file name contains "Loan" (case-insensitive)
+            if "loan" in csv["name"].lower():
+                expected_zip = csv["name"] + ".zip"
+                if expected_zip not in zip_names:
+                    self.log.info(f"Found unprocessed CSV with 'Loan' in name: {csv['name']}")
+                    context["task_instance"].xcom_push(
+                        key="file_info",
+                        value=csv
+                    )
+                    return True
+                else:
+                    self.log.info(f"File {csv['name']} already has a ZIP. Skipping.")
+            else:
+                self.log.info(f"File {csv['name']} does not contain 'Loan'. Skipping.")
 
-        # ❌ All CSVs already zipped
-        self.log.info("All CSV files already have ZIPs. Waiting.")
+        # ❌ All CSVs already zipped or don't contain 'Loan'
+        self.log.info("All eligible CSV files already have ZIPs or don't contain 'Loan'. Waiting.")
         return False

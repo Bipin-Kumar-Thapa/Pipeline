@@ -223,6 +223,7 @@ with DAG(
     start_date=days_ago(1),
     schedule_interval="*/4 * * * *",
     catchup=False,
+    max_active_runs=1,
 ) as dag:
 
     wait = GoogleDriveFileSensor(
